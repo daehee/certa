@@ -2,7 +2,6 @@ package main
 
 import (
     "database/sql"
-    "os"
     "sync"
     "time"
 
@@ -28,9 +27,6 @@ func (s *SQLStorage) AddDomain (d string) {
 // NewSQLClient initializes new sqlite database with domains table
 func NewSQLClient() *SQLStorage {
     // for dev only: destroy prev db
-    os.Remove("./recon.sqlite")
-
-    db, err := sql.Open("sqlite3", "./recon.sqlite")
     if err != nil {
         sugar.Fatal(err)
     }
