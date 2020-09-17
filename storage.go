@@ -1,46 +1,55 @@
 package main
 
 import (
-    "database/sql"
-    "sync"
-    "time"
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
 
-    _ "github.com/mattn/go-sqlite3"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type SQLStorage struct {
-    db *sql.DB
-    dbMutex sync.Mutex
+func AddDomain(d string) {
+	client, ctx, _ := mongoConnect()
+
+	opts := options.Update().SetUpsert(true)
+	filter := bson.D{{"domain", d}}
+	update := bson.D{{"$set", bson.D{
+		{Key: "domain", Value: d},
+	}}}
+	_, err := client.Database("recon").Collection("domains").UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		sugar.Fatal(err)
+	}
+
+	client.Disconnect(ctx)
 }
 
-func (s *SQLStorage) AddDomain (d string) {
-    s.dbMutex.Lock()
-    defer s.dbMutex.Unlock()
+func mongoConnect() (*mongo.Client, context.Context, context.CancelFunc) {
+	mongoEndpoint := os.Getenv("MONGODB_ENDPOINT") // export MONGODB_ENDPOINT=localhost:27017
+	if mongoEndpoint == "" {
+		log.Fatal("MONGODB_ENDPOINT not set as env variable")
+		os.Exit(1)
+	}
+	mongoConnect := fmt.Sprintf("mongodb://%s", mongoEndpoint)
+	client, err := mongo.NewClient(options.Client().ApplyURI(mongoConnect))
+	if err != nil {
+		sugar.Fatal(err)
+	}
 
-    stmt, err := s.db.Prepare("insert or ignore into domains (domain, added) VALUES (?, ?)")
-    _, err = stmt.Exec(d, time.Now())
-    if err != nil {
-        sugar.Errorw("error inserting domain into db", err)
-    }
-}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	err = client.Connect(ctx)
+	if err != nil {
+		sugar.Fatal(err)
+	}
+	// Force a connection to verify our connection string
+	// err = client.Ping(ctx, nil)
+	// if err != nil {
+	// 	sugar.Fatalf("Failed to ping cluster: %v", err)
+	// }
 
-// NewSQLClient initializes new sqlite database with domains table
-func NewSQLClient() *SQLStorage {
-    db, err := sql.Open("sqlite3", "./certa.sqlite")
-    if err != nil {
-        sugar.Fatal(err)
-    }
-    db.SetMaxOpenConns(1)
-
-    // setup new domains table if fresh db
-    // only accept unique domain inserts
-    sqlStmt := `
-    create table if not exists domains(id integer primary key, domain text not null, added timestamp not null, unique(domain));
-    `
-    _, err = db.Exec(sqlStmt)
-    if err != nil {
-        sugar.Fatal(err)
-    }
-
-    return &SQLStorage{db, sync.Mutex{}}
+	return client, ctx, cancel
 }
