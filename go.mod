@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/ashwanthkumar/slack-go-webhook v0.0.0-20200209025033-430dd4e66960
-	github.com/daehee/certstream-ws v0.0.0-20200911195219-811f555f328a
+	github.com/daehee/certstream-ws v0.0.0-20200918045950-1e16cce7c867
 	github.com/elazarl/goproxy v0.0.0-20200809112317-0581fc3aee2d // indirect
 	github.com/parnurzeal/gorequest v0.2.16 // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect
